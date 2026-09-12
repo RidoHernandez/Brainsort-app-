@@ -1,0 +1,7 @@
+
+> brainsort@1.0.0 web
+> expo start --web --port 8081
+
+Starting project at C:\Users\Roberth_Go\Documents\PROGRAMACION\Proyectos\BrainSortRepo\brainsort-app
+› Port 8081 is being used by another process
+› Skipping dev server

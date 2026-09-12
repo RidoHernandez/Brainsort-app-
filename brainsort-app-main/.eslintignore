@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.expo/
+src/sandbox/
+src/storage/
+src/visualization/
+src/screens/offline/
+src/generated/
+src/components/offline/

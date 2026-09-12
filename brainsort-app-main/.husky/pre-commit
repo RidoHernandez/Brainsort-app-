@@ -1,0 +1,19 @@
+#!/bin/sh
+local_branch="$(git rev-parse --abbrev-ref HEAD)"
+valid_branch_regex="^(main|dev|feature/[a-zA-Z0-9\-]+)$"
+
+if [ "$local_branch" = "HEAD" ]; then
+    exit 0
+fi
+
+if ! echo "$local_branch" | grep -Eq "$valid_branch_regex"; then
+    echo "🛑 [ERROR DevOps] Nomenclatura de rama invalida: '$local_branch'"
+    echo "💡 Formatos permitidos en este repositorio segun la documentacion:"
+    echo "  - feature/nombre-de-tarea"
+    echo "  - dev"
+    echo "  - main"
+    echo "Renombra tu rama localmente usando: git branch -m <nuevo_nombre>"
+    exit 1
+fi
+
+npm run lint
