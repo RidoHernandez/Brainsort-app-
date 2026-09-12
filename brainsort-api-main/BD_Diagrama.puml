@@ -1,0 +1,221 @@
+@startuml Clases_BrainSort
+title BrainSort - Diagrama Integrado (Clases + Base de Datos)
+
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontColor #000000
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam ArrowColor #000000
+skinparam ArrowFontColor #000000
+skinparam ArrowFontSize 10
+
+skinparam class {
+    BorderColor #000000
+    BackgroundColor #FFFFFF
+    FontColor #000000
+    BorderThickness 1
+    HeaderBackgroundColor #F0F0F0
+    HeaderFontColor #000000
+    AttributeFontColor #000000
+    StereotypeFontColor #555555
+}
+
+' ── Enumeraciones ──────────────────────────────────────
+
+enum UserRole {
+    Estudiante
+    Profesor
+    Autodidacta
+}
+
+enum AlgorithmCategory {
+    Ordenamiento
+    Busqueda
+    EstructurasLineales
+    EstructurasArbolares
+    Grafos
+}
+
+enum DifficultyLevel {
+    Facil
+    Medio
+    Dificil
+}
+
+enum SimulationState {
+    IDLE
+    PLAYING
+    PAUSED
+    FINISHED
+}
+
+enum OriginType {
+    DEFAULT
+    CUSTOM
+    RANDOM
+}
+
+' ── Clases ──────────────────────────────────────
+
+class BrainSort {
+    - currentVersion : String
+}
+
+class AlgorithmLibrary {
+    - categories : List~String~
+    - totalAlgorithms : Integer
+}
+
+class Usuario {
+    - id : UUID <<PK>>
+    - nombre : String
+    - correo : String <<UK>>
+    - rol : UserRole
+    - contrasena : String
+    - createdAt : DateTime
+    - updatedAt : DateTime
+}
+
+class Administrador {
+    - id : UUID <<PK>>
+    - nombre : String
+    - correo : String <<UK>>
+    - contrasena : String
+    - credencialesAdmin : String
+    - ultimoAcceso : DateTime
+    - createdAt : DateTime
+    - updatedAt : DateTime
+}
+
+class Algoritmo {
+    - id : UUID <<PK>>
+    - nombre : String <<UK>>
+    - descripcion : Text
+    - dificultad : String
+    - complejidadTiempo : String
+    - complejidadEspacio : String
+    - categoria : AlgorithmCategory
+    - pseudocodigo : JSON
+    - activo : Boolean
+    - createdAt : DateTime
+    - updatedAt : DateTime
+}
+
+class Simulation {
+    - id : UUID
+    - playbackSpeed : Float
+    - currentState : SimulationState
+    - currentStep : Integer
+    - totalSteps : Integer
+    - pasosCompletados : Integer
+    - completada : Boolean
+    - fechaInicio : DateTime
+    - fechaFin : DateTime
+}
+
+class Step {
+    - number : Integer
+    - description : String
+    - arrayState : List~Integer~
+    - comparedElements : List~Integer~
+    - swapOccurred : Boolean
+}
+
+class DataSet {
+    - values : List~Integer~
+    - originType : OriginType
+    - size : Integer
+}
+
+class EjercicioPrediccion {
+    - id : UUID <<PK>>
+    - pregunta : Text
+    - respuestaCorrecta : String
+    - dificultad : DifficultyLevel
+    - feedbackPositivo : Text
+    - feedbackNegativo : Text
+    - algoritmoId : UUID <<FK>>
+    - createdAt : DateTime
+}
+
+class RespuestaEjercicio {
+    - id : UUID <<PK>>
+    - respuesta : String
+    - correcto : Boolean
+    - puntosGanados : Integer
+    - fechaRespuesta : DateTime
+    - usuarioId : UUID <<FK>>
+    - ejercicioId : UUID <<FK>>
+}
+
+class ProgresoUsuario {
+    - id : UUID <<PK>>
+    - puntosTotales : Integer
+    - nivelActual : Integer
+    - rachaDias : Integer
+    - posicionRanking : Integer
+    - ultimaActividad : DateTime
+    - usuarioId : UUID <<UK, FK>>
+    - createdAt : DateTime
+    - updatedAt : DateTime
+}
+
+class Insignia {
+    - id : UUID <<PK>>
+    - nombre : String <<UK>>
+    - descripcion : Text
+    - imagen : String
+    - criterioDesbloqueo : String
+    - createdAt : DateTime
+}
+
+class ProgresoInsignia {
+    - id : UUID <<PK>>
+    - fechaObtencion : DateTime
+    - progresoId : UUID <<FK>>
+    - insigniaId : UUID <<FK>>
+}
+
+class SesionSimulacion {
+    - id : UUID <<PK>>
+    - pasosCompletados : Integer
+    - totalPasos : Integer
+    - completada : Boolean
+    - fechaInicio : DateTime
+    - fechaFin : DateTime
+    - usuarioId : UUID <<FK>>
+    - algoritmoId : UUID <<FK>>
+}
+
+' ── Relaciones ──────────────────────────────────────
+
+BrainSort "1" *-- "1" AlgorithmLibrary : maintains
+
+Usuario "1" -- "1" UserRole : has
+Usuario "1" *-- "1" ProgresoUsuario : owns
+Usuario "1" -- "0..*" RespuestaEjercicio : responde
+Usuario "1" -- "0..*" SesionSimulacion : visualiza
+
+Administrador --|> Usuario : extends
+Administrador "1" -- "0..*" Algoritmo : manages
+
+AlgorithmLibrary "1" *-- "1..*" Algoritmo : contains
+Algoritmo "1" -- "1" AlgorithmCategory : belongs to
+Algoritmo "1" *-- "1" Simulation : describes
+Algoritmo "1" *-- "0..*" EjercicioPrediccion : has
+
+Simulation "1" -- "1" SimulationState : has state
+Simulation "1" *-- "1" DataSet : operates on
+Simulation "1" *-- "1..*" Step : composed of
+
+DataSet "1" -- "1" OriginType : classified by
+
+EjercicioPrediccion "1" -- "1" DifficultyLevel : has
+EjercicioPrediccion "1" *-- "0..*" RespuestaEjercicio : tiene
+
+ProgresoUsuario "1" *-- "0..*" ProgresoInsignia : obtiene
+ProgresoUsuario "1" -- "0..*" SesionSimulacion : accumulates
+
+Insignia "1" *-- "0..*" ProgresoInsignia : otorga
+
+@enduml

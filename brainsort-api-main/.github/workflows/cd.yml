@@ -1,0 +1,43 @@
+name: CD
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Generate Prisma Client
+      run: npx prisma generate
+
+    - name: Build Docker image
+      run: docker build -t brainsort-api .
+
+    # Deploy to Railway (or your preferred platform)
+    # Uncomment and configure based on your deployment target
+    # - name: Deploy to Railway
+    #   uses: railway/cli@v2
+    #   with:
+    #     service: brainsort-api
+    #   env:
+    #     RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+    # Alternative: Deploy to other platforms
+    # - name: Push to Container Registry
+    #   run: |
+    #     echo ${{ secrets.REGISTRY_PASSWORD }} | docker login -u ${{ secrets.REGISTRY_USERNAME }} --password-stdin
+    #     docker tag brainsort-api:latest ${{ secrets.REGISTRY_URL }}/brainsort-api:latest
+    #     docker push ${{ secrets.REGISTRY_URL }}/brainsort-api:latest

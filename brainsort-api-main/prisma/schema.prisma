@@ -1,0 +1,283 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════
+// Entidad: Usuario
+// Modelo del Dominio: nombre, correo, rol, contraseña
+// Asociaciones: utiliza BrainSort, visualiza Simulación,
+//               completa EjercicioPredicción, tiene ProgresoUsuario
+// ═══════════════════════════════════════
+model Usuario {
+  id          String   @id @default(uuid())
+  nombre      String
+  correo      String   @unique
+  rol         Rol      @default(Estudiante)
+  contrasena  String   // BCrypt hashed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  progreso             ProgresoUsuario?
+  resultadoDiagnostico ResultadoDiagnostico?
+  rutaAprendizaje      RutaAprendizaje?
+  sesiones             SesionSimulacion[]
+  respuestas           RespuestaEjercicio[]
+
+  @@map("usuarios")
+}
+
+enum Rol {
+  Estudiante
+  Profesor
+  Autodidacta
+}
+
+// ═══════════════════════════════════════
+// Entidad: Administrador
+// Modelo del Dominio: credencialesAdmin, últimoAcceso
+// Asociación: gestiona Algoritmo
+// ═══════════════════════════════════════
+model Administrador {
+  id                String   @id @default(uuid())
+  nombre            String
+  correo            String   @unique
+  contrasena        String   // BCrypt hashed
+  credencialesAdmin String
+  ultimoAcceso      DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("administradores")
+}
+
+// ═══════════════════════════════════════
+// Entidad: Algoritmo
+// Modelo del Dominio: nombre, descripción, dificultad, complejidadTiempo,
+//                     complejidadEspacio, categoría, pseudocodigo
+// Asociaciones: contenido en BibliotecaDeAlgoritmos,
+//               tiene descrita Simulación, gestionado por Admin
+// ═══════════════════════════════════════
+model Algoritmo {
+  id                String    @id @default(uuid())
+  nombre            String    @unique
+  descripcion       String    @db.Text
+  dificultad        String
+  complejidadTiempo String    // Notación Big O, ej: "O(n²)"
+  complejidadEspacio String   // Notación Big O, ej: "O(1)"
+  categoria         CategoriaAlgoritmo
+  tags              String[]
+  pseudocodigo      Json?     // Array de {numero: number, codigo: string}
+  visualizacion     Json?     // Config de marcadores visuales por línea/rol
+  activo            Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relaciones
+  ejercicios   EjercicioPrediccion[]
+  sesiones     SesionSimulacion[]
+
+  @@map("algoritmos")
+}
+
+enum CategoriaAlgoritmo {
+  Ordenamiento
+  Busqueda
+  EstructurasLineales
+  EstructurasArboles
+}
+
+// ═══════════════════════════════════════
+// Entidad: EjercicioPredicción
+// Modelo del Dominio: pregunta, respuestaCorrecta, dificultad,
+//                     feedbackPositivo, feedbackNegativo
+// Asociación: asociado a Algoritmo (*:1)
+// ═══════════════════════════════════════
+model EjercicioPrediccion {
+  id                String   @id @default(uuid())
+  tipo              TipoEjercicio @default(PrediccionTexto)
+  pregunta          String   @db.Text
+  respuestaCorrecta String
+  dificultad        DificultadEjercicio
+  opciones          Json?
+  contenido         Json?
+  feedbackPositivo  String   @db.Text
+  feedbackNegativo  String   @db.Text
+  createdAt         DateTime @default(now())
+
+  // Relaciones
+  algoritmoId  String
+  algoritmo    Algoritmo  @relation(fields: [algoritmoId], references: [id])
+  respuestas   RespuestaEjercicio[]
+
+  @@map("ejercicios_prediccion")
+}
+
+enum DificultadEjercicio {
+  Facil
+  Medio
+  Dificil
+}
+
+enum TipoEjercicio {
+  PrediccionTexto
+  CompletarPseudocodigo
+  OrdenarBarras
+}
+
+// ═══════════════════════════════════════
+// Entidad: ProgresoUsuario
+// Modelo del Dominio: puntosTotales, nivelActual,
+//                     rachaDías, posiciónRanking
+// Asociación: registra Insignia (1:0..*)
+// ═══════════════════════════════════════
+model ProgresoUsuario {
+  id               String   @id @default(uuid())
+  puntosTotales    Int      @default(0)
+  nivelActual      Int      @default(1)
+  rachaDias        Int      @default(0)
+  posicionRanking  Int      @default(0)
+  ultimaActividad  DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relaciones
+  usuarioId   String   @unique
+  usuario     Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  insignias   ProgresoInsignia[]
+
+  @@index([puntosTotales(sort: Desc)]) // Para queries de ranking rápidas
+  @@map("progreso_usuario")
+}
+
+// ═══════════════════════════════════════
+// Entidad: Insignia
+// Modelo del Dominio: nombre, descripción, imagen,
+//                     criterioDesbloqueo, fechaObtención
+// ═══════════════════════════════════════
+model Insignia {
+  id                String   @id @default(uuid())
+  nombre            String   @unique
+  descripcion       String   @db.Text
+  imagen            String   // URL o ruta del asset
+  criterioDesbloqueo String
+  createdAt         DateTime @default(now())
+
+  // Relaciones
+  progresosOtorgados ProgresoInsignia[]
+
+  @@map("insignias")
+}
+
+// ═══════════════════════════════════════
+// Tabla intermedia: ProgresoUsuario ↔ Insignia
+// Según UML: ProgresoUsuario registra Insignia (1:0..*)
+// ═══════════════════════════════════════
+model ProgresoInsignia {
+  id              String   @id @default(uuid())
+  fechaObtencion  DateTime @default(now())
+
+  progresoId String
+  progreso   ProgresoUsuario @relation(fields: [progresoId], references: [id], onDelete: Cascade)
+
+  insigniaId String
+  insignia   Insignia  @relation(fields: [insigniaId], references: [id])
+
+  @@unique([progresoId, insigniaId]) // Un usuario no puede tener la misma insignia 2 veces
+  @@map("progreso_insignias")
+}
+
+// ═══════════════════════════════════════
+// Entidad auxiliar: SesionSimulacion
+// Registra que un usuario ha visualizado/completado una simulación
+// Para implementar CO2 y CO3: "asociar avance con la cuenta actual"
+// ═══════════════════════════════════════
+model SesionSimulacion {
+  id                 String   @id @default(uuid())
+  pasosCompletados   Int      @default(0)
+  totalPasos         Int
+  completada         Boolean  @default(false)
+  fechaInicio        DateTime @default(now())
+  fechaFin           DateTime?
+
+  // Relaciones
+  usuarioId   String
+  usuario     Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  algoritmoId String
+  algoritmo   Algoritmo @relation(fields: [algoritmoId], references: [id])
+
+  @@map("sesiones_simulacion")
+}
+
+// ═══════════════════════════════════════
+// Entidad auxiliar: RespuestaEjercicio
+// Registra las respuestas del usuario a los ejercicios de predicción
+// ═══════════════════════════════════════
+model RespuestaEjercicio {
+  id             String   @id @default(uuid())
+  respuesta      String
+  correcto       Boolean
+  puntosGanados  Int      @default(0)
+  fechaRespuesta DateTime @default(now())
+
+  // Relaciones
+  usuarioId    String
+  usuario      Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  ejercicioId  String
+  ejercicio    EjercicioPrediccion @relation(fields: [ejercicioId], references: [id])
+
+  @@map("respuestas_ejercicio")
+}
+
+// ═══════════════════════════════════════
+// Entidad: PreguntaDiagnostico
+// Preguntas para el test inicial de perfilamiento
+// ═══════════════════════════════════════
+model PreguntaDiagnostico {
+  id              String   @id @default(uuid())
+  pregunta        String   @db.Text
+  opciones        String[] // Array de strings con las opciones
+  indiceCorrecto  Int
+  createdAt       DateTime @default(now())
+
+  @@map("preguntas_diagnostico")
+}
+
+// ═══════════════════════════════════════
+// Entidad: ResultadoDiagnostico
+// Resultado del test inicial de un usuario
+// ═══════════════════════════════════════
+model ResultadoDiagnostico {
+  id              String   @id @default(uuid())
+  puntaje         Int      // 0 a 100
+  fechaEvaluacion DateTime @default(now())
+
+  // Relaciones
+  usuarioId       String   @unique
+  usuario         Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("resultados_diagnostico")
+}
+
+// ═══════════════════════════════════════
+// Entidad: RutaAprendizaje
+// Secuencia sugerida de algoritmos para el usuario
+// ═══════════════════════════════════════
+model RutaAprendizaje {
+  id              String   @id @default(uuid())
+  algoritmosId    String[] // Array de IDs de Algoritmo en orden sugerido
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relaciones
+  usuarioId       String   @unique
+  usuario         Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("rutas_aprendizaje")
+}
